@@ -22,6 +22,7 @@ viewBox="0 0 418000 279400">
 .fil7 {fill:#D82B40}
 .fil6 {fill:#ECECEB}
 .fil8 {fill:#E0E0C0}
+.clicked {fill:red}
 ]]>
 </style>
 </defs>

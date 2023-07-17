@@ -17,6 +17,9 @@ document.addEventListener('DOMContentLoaded', function() {
         map.addEventListener('click', function(event) {
           // Get the clicked path element
           const clickedPath = event.target;
+
+          // Toggle the CSS class to change the color
+          clickedPath.classList.toggle('clicked');
   
           // Log the ID of the clicked municipality
           console.log('Clicked municipality:', clickedPath.id);
