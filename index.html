@@ -1,19 +1,117 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>Interactive Map</title>
-  <style>
-    svg {
-      width: 100%;
-      height: auto;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <title>Clickable Map</title>
+    <style>
+        body {
+            display: flex;
+        }
+        #map-container {
+            flex: 1;
+            border: 1px solid #ccc;
+        }
+        #selected-municipalities {
+            flex: 0 0 300px;
+            margin-left: 20px;
+            border: 1px solid #ccc;
+            padding: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        .clicked {
+            fill: red; /* Change this to your desired highlight color */
+        }
+    </style>
 </head>
 <body>
-  <h1>Interactive Map</h1>
-  <div id="map-container"></div>
-  <div id="selected-municipalities"></div>
+    <div id="map-container"></div>
+    <div id="selected-municipalities"></div>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const mapContainer = document.getElementById('map-container');
+            const selectedMunicipalitiesContainer = document.getElementById('selected-municipalities');
 
-  <script src="script.js" crossorigin="anonymous"></script>
+            // Load the SVG file using an AJAX request
+            const xhr = new XMLHttpRequest();
+            xhr.open('GET', 'sc.svg', true);
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState === 4 && xhr.status === 200) {
+                    mapContainer.innerHTML = xhr.responseText;
+
+                    // Get the SVG map element
+                    const map = document.querySelector('svg');
+
+                    // Load the CSV file using another AJAX request
+                    const csvXhr = new XMLHttpRequest();
+                    csvXhr.open('GET', 'municipalities.csv', true);
+                    csvXhr.onreadystatechange = function() {
+                        if (csvXhr.readyState === 4 && csvXhr.status === 200) {
+                            const csvData = csvXhr.responseText;
+                            const municipalitiesData = parseCSV(csvData);
+
+                            // Object to store selected municipalities
+                            const selectedMunicipalities = {};
+
+                            // Add click event listener to the map
+                            map.addEventListener('click', function(event) {
+                                const clickedPath = event.target;
+                                const municipalityId = clickedPath.id;
+                                const municipalityData = municipalitiesData[municipalityId];
+
+                                if (municipalityData) {
+                                    clickedPath.classList.toggle('clicked');
+
+                                    if (selectedMunicipalities[municipalityId]) {
+                                        delete selectedMunicipalities[municipalityId];
+                                    } else {
+                                        selectedMunicipalities[municipalityId] = municipalityData;
+                                    }
+
+                                    updateSelectedMunicipalitiesDisplay(selectedMunicipalities);
+                                }
+                            });
+                        }
+                    };
+                    csvXhr.send();
+                }
+            };
+            xhr.send();
+
+            function parseCSV(csv) {
+                const lines = csv.split('\n');
+                const municipalities = {};
+
+                for (let i = 1; i < lines.length; i++) {
+                    const [name, population, , id] = lines[i].split(',');
+
+                    if (id) {
+                        municipalities[id.trim()] = {
+                            name: name.trim(),
+                            population: parseInt(population.trim(), 10)
+                        };
+                    }
+                }
+
+                return municipalities;
+            }
+
+            function updateSelectedMunicipalitiesDisplay(selectedMunicipalities) {
+                let totalPopulation = 0;
+                const listItems = [];
+
+                for (const id in selectedMunicipalities) {
+                    const municipality = selectedMunicipalities[id];
+                    totalPopulation += municipality.population;
+                    listItems.push(`<li>${municipality.name} (Pop.: ${municipality.population})</li>`);
+                }
+
+                selectedMunicipalitiesContainer.innerHTML = `
+                    <h2>Municípios selecionados</h2>
+                    <p>Total Population: ${totalPopulation}</p>
+                    <ul>${listItems.join('')}</ul>
+                `;
+            }
+        });
+    </script>
 </body>
 </html>
