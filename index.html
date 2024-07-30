@@ -21,15 +21,27 @@
         .clicked {
             fill: red; /* Change this to your desired highlight color */
         }
+        #controls {
+            margin-bottom: 20px;
+        }
     </style>
 </head>
 <body>
     <div id="map-container"></div>
-    <div id="selected-municipalities"></div>
+    <div id="selected-municipalities">
+        <div id="controls">
+            <button id="save-district">Save District</button>
+            <button id="load-district">Load District</button>
+        </div>
+    </div>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             const mapContainer = document.getElementById('map-container');
             const selectedMunicipalitiesContainer = document.getElementById('selected-municipalities');
+            const saveButton = document.getElementById('save-district');
+            const loadButton = document.getElementById('load-district');
+
+            const SELECTED_DISTRICT_KEY = 'selectedDistrict';
 
             // Load the SVG file using an AJAX request
             const xhr = new XMLHttpRequest();
@@ -70,6 +82,14 @@
                                     updateSelectedMunicipalitiesDisplay(selectedMunicipalities);
                                 }
                             });
+
+                            saveButton.addEventListener('click', function() {
+                                saveDistrict(selectedMunicipalities);
+                            });
+
+                            loadButton.addEventListener('click', function() {
+                                loadDistrict(map, municipalitiesData, selectedMunicipalities);
+                            });
                         }
                     };
                     csvXhr.send();
@@ -102,14 +122,40 @@
                 for (const id in selectedMunicipalities) {
                     const municipality = selectedMunicipalities[id];
                     totalPopulation += municipality.population;
-                    listItems.push(`<li>${municipality.name} (Pop.: ${municipality.population})</li>`);
+                    listItems.push(`<li>${municipality.name} (Population: ${municipality.population})</li>`);
                 }
 
                 selectedMunicipalitiesContainer.innerHTML = `
-                    <h2>Municípios selecionados</h2>
+                    <div id="controls">
+                        <button id="save-district">Save District</button>
+                        <button id="load-district">Load District</button>
+                    </div>
+                    <h2>Selected Municipalities</h2>
                     <p>Total Population: ${totalPopulation}</p>
                     <ul>${listItems.join('')}</ul>
                 `;
+            }
+
+            function saveDistrict(selectedMunicipalities) {
+                localStorage.setItem(SELECTED_DISTRICT_KEY, JSON.stringify(selectedMunicipalities));
+                alert('District saved successfully!');
+            }
+
+            function loadDistrict(map, municipalitiesData, selectedMunicipalities) {
+                const savedDistrict = localStorage.getItem(SELECTED_DISTRICT_KEY);
+                if (savedDistrict) {
+                    const district = JSON.parse(savedDistrict);
+                    for (const id in district) {
+                        selectedMunicipalities[id] = municipalitiesData[id];
+                        const path = map.getElementById(id);
+                        if (path) {
+                            path.classList.add('clicked');
+                        }
+                    }
+                    updateSelectedMunicipalitiesDisplay(selectedMunicipalities);
+                } else {
+                    alert('No saved district found.');
+                }
             }
         });
     </script>
