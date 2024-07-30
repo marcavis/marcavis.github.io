@@ -50,6 +50,7 @@
     <div id="selected-municipalities">
         <div id="controls">
             <button id="save-district">Save District</button>
+            <button id="save-UF">Save All Districts</button>
             <input type="file" id="load-district-file" style="display:none">
             <button id="load-district">Load District</button>
             <div id="color-palette">
@@ -83,6 +84,7 @@
         document.addEventListener('DOMContentLoaded', function() {
             const mapContainer = document.getElementById('map-container');
             const saveButton = document.getElementById('save-district');
+            const saveUFButton = document.getElementById('save-UF');
             const loadButton = document.getElementById('load-district');
             const loadFileInput = document.getElementById('load-district-file');
             const implementButton = document.getElementById('implement-district');
@@ -92,7 +94,7 @@
             const colorPalette = document.getElementById('color-palette');
             let selectedColor = '#e6194b'; // Default color
             
-            const implementedDistricts = {};
+            
 
             // Load the SVG file using an AJAX request
             const xhr = new XMLHttpRequest();
@@ -111,6 +113,8 @@
                         if (csvXhr.readyState === 4 && csvXhr.status === 200) {
                             const csvData = csvXhr.responseText;
                             const municipalitiesData = parseCSV(csvData);
+
+                            const implementedDistricts = {};
 
                             // Object to store selected municipalities
                             const selectedMunicipalities = {};
@@ -140,6 +144,10 @@
                                 saveDistrict(selectedMunicipalities);
                             });
 
+                            saveUFButton.addEventListener('click', function() {
+                                saveUF(implementedDistricts);
+                            });
+
                             loadButton.addEventListener('click', function() {
                                 loadFileInput.click();
                             });
@@ -160,7 +168,7 @@
                             });
 
                             implementButton.addEventListener('click', function() {
-                                implementDistrict(selectedMunicipalities, municipalitiesData, map);
+                                implementDistrict(implementedDistricts, selectedMunicipalities, municipalitiesData, map);
                             });
                         }
                     };
@@ -221,7 +229,6 @@
 
             function saveDistrict(selectedMunicipalities) {
                 const blob = new Blob([JSON.stringify(selectedMunicipalities)], { type: 'application/json' });
-                //const blob = new Blob([JSON.stringify(implementedDistricts)], { type: 'application/json' });
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
@@ -231,6 +238,19 @@
                 document.body.removeChild(a);
                 URL.revokeObjectURL(url);
             }
+
+            function saveUF(implementedDistricts) {
+                const blob = new Blob([JSON.stringify(implementedDistricts)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'UF-atual.json';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            }
+
 
             function loadDistrict(file, map, municipalitiesData, selectedMunicipalities) {
                 const reader = new FileReader();
@@ -249,7 +269,7 @@
                 reader.readAsText(file);
             }
 
-            function implementDistrict(selectedMunicipalities, municipalitiesData, map) {
+            function implementDistrict(implementedDistricts, selectedMunicipalities, municipalitiesData, map) {
                 
                 
                 let totalPopulation = 0;
@@ -263,7 +283,8 @@
                         mostPopulousCity = municipality;
                     }
                 }
-                implementedDistricts[mostPopulousCity] = {selectedMunicipalities};
+                const clone = structuredClone(selectedMunicipalities);
+                implementedDistricts[mostPopulousCity.name] = clone;
                 console.log(implementedDistricts);
 
                 // Create a new district element
