@@ -19,10 +19,29 @@
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
         }
         .clicked {
-            fill: red; /* Change this to your desired highlight color */
+            fill: red; /* Default highlight color */
         }
         #controls {
             margin-bottom: 20px;
+        }
+        .color-box {
+            width: 20px;
+            height: 20px;
+            display: inline-block;
+            cursor: pointer;
+            margin: 2px;
+            border: 1px solid #000;
+        }
+        .selected-color {
+            border: 2px solid #000;
+        }
+        .district {
+            margin-bottom: 10px;
+            padding: 5px;
+            border: 1px solid #ccc;
+        }
+        .district h4 {
+            margin: 0 0 5px;
         }
     </style>
 </head>
@@ -31,17 +50,49 @@
     <div id="selected-municipalities">
         <div id="controls">
             <button id="save-district">Save District</button>
+            <input type="file" id="load-district-file" style="display:none">
             <button id="load-district">Load District</button>
+            <div id="color-palette">
+                <h3>Select Color</h3>
+                <div class="color-box" style="background-color: #e6194b;"></div>
+                <div class="color-box" style="background-color: #3cb44b;"></div>
+                <div class="color-box" style="background-color: #ffe119;"></div>
+                <div class="color-box" style="background-color: #0082c8;"></div>
+                <div class="color-box" style="background-color: #f58231;"></div>
+                <div class="color-box" style="background-color: #911eb4;"></div>
+                <div class="color-box" style="background-color: #46f0f0;"></div>
+                <div class="color-box" style="background-color: #f032e6;"></div>
+                <div class="color-box" style="background-color: #d2f53c;"></div>
+                <div class="color-box" style="background-color: #fabebe;"></div>
+                <div class="color-box" style="background-color: #008080;"></div>
+                <div class="color-box" style="background-color: #e6beff;"></div>
+                <div class="color-box" style="background-color: #aa6e28;"></div>
+                <div class="color-box" style="background-color: #800000;"></div>
+                <div class="color-box" style="background-color: #aaffc3;"></div>
+            </div>
+            <button id="implement-district">Implement Current District</button>
+        </div>
+        <h2>Selected Municipalities</h2>
+        <p id="total-population">Total Population: 0</p>
+        <ul id="municipality-list"></ul>
+        <div id="implemented-districts">
+            <h3>Implemented Districts</h3>
         </div>
     </div>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             const mapContainer = document.getElementById('map-container');
-            const selectedMunicipalitiesContainer = document.getElementById('selected-municipalities');
             const saveButton = document.getElementById('save-district');
             const loadButton = document.getElementById('load-district');
-
-            const SELECTED_DISTRICT_KEY = 'selectedDistrict';
+            const loadFileInput = document.getElementById('load-district-file');
+            const implementButton = document.getElementById('implement-district');
+            const totalPopulationElement = document.getElementById('total-population');
+            const municipalityListElement = document.getElementById('municipality-list');
+            const implementedDistrictsElement = document.getElementById('implemented-districts');
+            const colorPalette = document.getElementById('color-palette');
+            let selectedColor = '#e6194b'; // Default color
+            
+            const implementedDistricts = {};
 
             // Load the SVG file using an AJAX request
             const xhr = new XMLHttpRequest();
@@ -72,9 +123,11 @@
 
                                 if (municipalityData) {
                                     clickedPath.classList.toggle('clicked');
+                                    clickedPath.style.fill = selectedColor;
 
                                     if (selectedMunicipalities[municipalityId]) {
                                         delete selectedMunicipalities[municipalityId];
+                                        clickedPath.style.fill = ''; // Reset color if unselected
                                     } else {
                                         selectedMunicipalities[municipalityId] = municipalityData;
                                     }
@@ -88,7 +141,26 @@
                             });
 
                             loadButton.addEventListener('click', function() {
-                                loadDistrict(map, municipalitiesData, selectedMunicipalities);
+                                loadFileInput.click();
+                            });
+
+                            loadFileInput.addEventListener('change', function(event) {
+                                const file = event.target.files[0];
+                                if (file) {
+                                    loadDistrict(file, map, municipalitiesData, selectedMunicipalities);
+                                }
+                            });
+
+                            colorPalette.addEventListener('click', function(event) {
+                                if (event.target.classList.contains('color-box')) {
+                                    document.querySelectorAll('.color-box').forEach(box => box.classList.remove('selected-color'));
+                                    event.target.classList.add('selected-color');
+                                    selectedColor = event.target.style.backgroundColor;
+                                }
+                            });
+
+                            implementButton.addEventListener('click', function() {
+                                implementDistrict(selectedMunicipalities, municipalitiesData, map);
                             });
                         }
                     };
@@ -117,45 +189,119 @@
 
             function updateSelectedMunicipalitiesDisplay(selectedMunicipalities) {
                 let totalPopulation = 0;
-                const listItems = [];
+                municipalityListElement.innerHTML = '';
 
                 for (const id in selectedMunicipalities) {
                     const municipality = selectedMunicipalities[id];
                     totalPopulation += municipality.population;
-                    listItems.push(`<li>${municipality.name} (Population: ${municipality.population})</li>`);
+
+                    const listItem = document.createElement('li');
+                    listItem.textContent = `${municipality.name} (Population: ${municipality.population})`;
+                    municipalityListElement.appendChild(listItem);
                 }
 
-                selectedMunicipalitiesContainer.innerHTML = `
-                    <div id="controls">
-                        <button id="save-district">Save District</button>
-                        <button id="load-district">Load District</button>
-                    </div>
-                    <h2>Selected Municipalities</h2>
-                    <p>Total Population: ${totalPopulation}</p>
-                    <ul>${listItems.join('')}</ul>
-                `;
+                totalPopulationElement.textContent = `Total Population: ${totalPopulation}`;
+            }
+
+            function updateSelectedDisctrictsDisplay(implementedDistricts) {
+                let totalPopulation = 0;
+                implementedDistrictsElement.innerHTML = '';
+
+                for (const id in selectedMunicipalities) {
+                    const municipality = selectedMunicipalities[id];
+                    totalPopulation += municipality.population;
+
+                    const listItem = document.createElement('li');
+                    listItem.textContent = `${municipality.name} (Population: ${municipality.population})`;
+                    municipalityListElement.appendChild(listItem);
+                }
+
+                totalPopulationElement.textContent = `Total Population: ${totalPopulation}`;
             }
 
             function saveDistrict(selectedMunicipalities) {
-                localStorage.setItem(SELECTED_DISTRICT_KEY, JSON.stringify(selectedMunicipalities));
-                alert('District saved successfully!');
+                const blob = new Blob([JSON.stringify(selectedMunicipalities)], { type: 'application/json' });
+                //const blob = new Blob([JSON.stringify(implementedDistricts)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'district.json';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
             }
 
-            function loadDistrict(map, municipalitiesData, selectedMunicipalities) {
-                const savedDistrict = localStorage.getItem(SELECTED_DISTRICT_KEY);
-                if (savedDistrict) {
-                    const district = JSON.parse(savedDistrict);
+            function loadDistrict(file, map, municipalitiesData, selectedMunicipalities) {
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    const district = JSON.parse(event.target.result);
                     for (const id in district) {
                         selectedMunicipalities[id] = municipalitiesData[id];
                         const path = map.getElementById(id);
                         if (path) {
                             path.classList.add('clicked');
+                            path.style.fill = selectedColor; // Apply selected color to loaded district
                         }
                     }
                     updateSelectedMunicipalitiesDisplay(selectedMunicipalities);
-                } else {
-                    alert('No saved district found.');
+                };
+                reader.readAsText(file);
+            }
+
+            function implementDistrict(selectedMunicipalities, municipalitiesData, map) {
+                
+                
+                let totalPopulation = 0;
+                let mostPopulousCity = null;
+                let cityCount = Object.keys(selectedMunicipalities).length;
+                for (const id in selectedMunicipalities) {
+                    const municipality = selectedMunicipalities[id];
+                    totalPopulation += municipality.population;
+
+                    if (!mostPopulousCity || municipality.population > mostPopulousCity.population) {
+                        mostPopulousCity = municipality;
+                    }
                 }
+                implementedDistricts[mostPopulousCity] = {selectedMunicipalities};
+                console.log(implementedDistricts);
+
+                // Create a new district element
+                const districtElement = document.createElement('div');
+                districtElement.classList.add('district');
+                const districtName = mostPopulousCity ? mostPopulousCity.name : 'Unnamed District';
+                
+                districtElement.innerHTML = `<h4>${districtName}, ${cityCount}, Pop: ${totalPopulation}</h4>`;
+
+                // Create a list of municipalities in the district
+                // const districtList = document.createElement('ul');
+                // for (const id in selectedMunicipalities) {
+                //     const municipality = selectedMunicipalities[id];
+                //     const listItem = document.createElement('li');
+                //     listItem.textContent = `${municipality.name} (Population: ${municipality.population})`;
+                //     districtList.appendChild(listItem);
+                // }
+
+                //districtElement.appendChild(districtList);
+                implementedDistrictsElement.appendChild(districtElement);
+
+                // Clear the current selection
+                municipalityListElement.innerHTML = '';
+                totalPopulationElement.textContent = 'Total Population: 0';
+
+                for (const id in selectedMunicipalities) {
+                    const path = map.getElementById(id);
+                    if (path) {
+                        path.classList.remove('clicked');
+                        path.style.fill = ''; // Reset color
+                    }
+                }
+
+                // Clear the selectedMunicipalities object
+                for (const id in selectedMunicipalities) {
+                    delete selectedMunicipalities[id];
+                }
+
             }
         });
     </script>
