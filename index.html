@@ -49,10 +49,10 @@
     <div id="map-container"></div>
     <div id="selected-municipalities">
         <div id="controls">
-            <button id="save-district">Save District</button>
-            <button id="save-UF">Save All Districts</button>
+            <!-- <button id="save-district">Save District</button> -->
+            <button id="save-districts">Save All Districts</button>
             <input type="file" id="load-district-file" style="display:none">
-            <button id="load-district">Load District</button>
+            <button id="load-districts">Load All Districts</button>
             <div id="color-palette">
                 <h3>Select Color</h3>
                 <div class="color-box" style="background-color: #e6194b;"></div>
@@ -83,9 +83,9 @@
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             const mapContainer = document.getElementById('map-container');
-            const saveButton = document.getElementById('save-district');
-            const saveUFButton = document.getElementById('save-UF');
-            const loadButton = document.getElementById('load-district');
+            // const saveButton = document.getElementById('save-district');
+            const saveButton = document.getElementById('save-districts');
+            const loadButton = document.getElementById('load-districts');
             const loadFileInput = document.getElementById('load-district-file');
             const implementButton = document.getElementById('implement-district');
             const totalPopulationElement = document.getElementById('total-population');
@@ -141,21 +141,24 @@
                             });
 
                             saveButton.addEventListener('click', function() {
-                                saveDistrict(selectedMunicipalities);
+                                saveDistricts(implementedDistricts);
                             });
 
-                            saveUFButton.addEventListener('click', function() {
-                                saveUF(implementedDistricts);
-                            });
+                            
 
                             loadButton.addEventListener('click', function() {
                                 loadFileInput.click();
                             });
 
+                            // saveUFButton.addEventListener('click', function() {
+                            //     saveUF(implementedDistricts);
+                            // });
+
                             loadFileInput.addEventListener('change', function(event) {
                                 const file = event.target.files[0];
                                 if (file) {
-                                    loadDistrict(file, map, municipalitiesData, selectedMunicipalities);
+                                    //loadDistrict(file, map, municipalitiesData, selectedMunicipalities);
+                                    loadDistricts(file, map, municipalitiesData, implementedDistricts);
                                 }
                             });
 
@@ -239,18 +242,33 @@
                 URL.revokeObjectURL(url);
             }
 
-            function saveUF(implementedDistricts) {
+            function saveDistricts(implementedDistricts) {
                 const blob = new Blob([JSON.stringify(implementedDistricts)], { type: 'application/json' });
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
-                a.download = 'UF-atual.json';
+                a.download = 'districts.json';
                 document.body.appendChild(a);
                 a.click();
                 document.body.removeChild(a);
                 URL.revokeObjectURL(url);
             }
 
+            //algum progresso
+            function loadDistricts(file, map, municipalitiesData, implementedDistricts) {
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    const districts = JSON.parse(event.target.result);
+                    
+                    municipalityListElement.innerHTML = '';
+                    implementedDistrictsElement.innerHTML = '';
+
+                    for (const district in districts) {
+                        implementDistrict(implementedDistricts, districts[district], municipalitiesData, map);
+                    }
+                };
+                reader.readAsText(file);
+            }
 
             function loadDistrict(file, map, municipalitiesData, selectedMunicipalities) {
                 const reader = new FileReader();
@@ -294,15 +312,6 @@
                 
                 districtElement.innerHTML = `<h4>${districtName}, ${cityCount}, Pop: ${totalPopulation}</h4>`;
 
-                // Create a list of municipalities in the district
-                // const districtList = document.createElement('ul');
-                // for (const id in selectedMunicipalities) {
-                //     const municipality = selectedMunicipalities[id];
-                //     const listItem = document.createElement('li');
-                //     listItem.textContent = `${municipality.name} (Population: ${municipality.population})`;
-                //     districtList.appendChild(listItem);
-                // }
-
                 //districtElement.appendChild(districtList);
                 implementedDistrictsElement.appendChild(districtElement);
 
@@ -324,6 +333,7 @@
                 }
 
             }
+
         });
     </script>
 </body>
