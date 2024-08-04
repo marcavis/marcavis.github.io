@@ -43,6 +43,17 @@
         .district h4 {
             margin: 0 0 5px;
         }
+        .prohibited {
+            position: absolute;
+            font-size: 24px;
+            display: none;
+            pointer-events: none;
+        }
+        .district .trash-icon {
+            cursor: pointer;
+            margin-left: 10px;
+            color: red;
+        }
     </style>
 </head>
 <body>
@@ -80,6 +91,7 @@
             <h3>Implemented Districts</h3>
         </div>
     </div>
+    <div id="prohibited" class="prohibited">🚫</div>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             const mapContainer = document.getElementById('map-container');
@@ -92,8 +104,9 @@
             const municipalityListElement = document.getElementById('municipality-list');
             const implementedDistrictsElement = document.getElementById('implemented-districts');
             const colorPalette = document.getElementById('color-palette');
+            const prohibitedSymbol = document.getElementById('prohibited');
             let selectedColor = '#e6194b'; // Default color
-            
+            let implementedMunicipalities = new Set();
             
 
             // Load the SVG file using an AJAX request
@@ -126,17 +139,21 @@
                                 const municipalityData = municipalitiesData[municipalityId];
 
                                 if (municipalityData) {
-                                    clickedPath.classList.toggle('clicked');
-                                    clickedPath.style.fill = selectedColor;
-
-                                    if (selectedMunicipalities[municipalityId]) {
-                                        delete selectedMunicipalities[municipalityId];
-                                        clickedPath.style.fill = ''; // Reset color if unselected
+                                    if (implementedMunicipalities.has(municipalityId)) {
+                                        showProhibitedSymbol(event.offsetX, event.offsetY);
                                     } else {
-                                        selectedMunicipalities[municipalityId] = municipalityData;
-                                    }
+                                        clickedPath.classList.toggle('clicked');
+                                        clickedPath.style.fill = selectedColor;
 
-                                    updateSelectedMunicipalitiesDisplay(selectedMunicipalities);
+                                        if (selectedMunicipalities[municipalityId]) {
+                                            delete selectedMunicipalities[municipalityId];
+                                            clickedPath.style.fill = ''; // Reset color if unselected
+                                        } else {
+                                            selectedMunicipalities[municipalityId] = municipalityData;
+                                        }
+
+                                        updateSelectedMunicipalitiesDisplay(selectedMunicipalities);
+                                    }
                                 }
                             });
 
@@ -334,13 +351,18 @@
                 districtElement.classList.add('district');
                 const districtName = mostPopulousCity ? mostPopulousCity.name : 'Unnamed District';
                 
-                districtElement.innerHTML = `<h4>${districtName}, ${cityCount}, Pop: ${totalPopulation}</h4>`;
+                districtElement.innerHTML = `<h4>${districtName}, ${cityCount}, Pop: ${totalPopulation} <span class="trash-icon">🗑️</span></h4>`;
 
                 //districtElement.appendChild(districtList);
                 implementedDistrictsElement.appendChild(districtElement);
 
                 // Attach data to the district element for hover effect
                 districtElement.dataset.municipalities = JSON.stringify(selectedMunicipalities);
+
+                // Add the municipalities to the implementedMunicipalities set
+                for (const id in selectedMunicipalities) {
+                    implementedMunicipalities.add(id);
+                }
 
                 // Clear the current selection
                 municipalityListElement.innerHTML = '';
@@ -359,11 +381,33 @@
                     delete selectedMunicipalities[id];
                 }
 
+                // Add event listener to trash icon for deleting the district
+                const trashIcon = districtElement.querySelector('.trash-icon');
+                trashIcon.addEventListener('click', function() {
+                    if (confirm(`Are you sure you want to delete the district "${districtName}"?`)) {
+                        removeDistrict(map, districtElement, selectedMunicipalities);
+                    }
+                });
             }
 
-            function showProhibitedSymbol(x, y) {
-                prohibitedSymbol.style.left = `${x}px`;
-                prohibitedSymbol.style.top = `${y}px`;
+            function removeDistrict(map, districtElement, selectedMunicipalities) {
+                // Remove the municipalities from the implementedMunicipalities set
+                const districtMunicipalities = JSON.parse(districtElement.dataset.municipalities);
+                for (const id in districtMunicipalities) {
+                    implementedMunicipalities.delete(id);
+                    const path = map.getElementById(id);
+                    if (path) {
+                        path.style.fill = '';
+                    }
+                }
+
+                // Remove the district element from the DOM
+                districtElement.remove();
+            }
+
+            function showProhibitedSymbol(clientX, clientY) {
+                prohibitedSymbol.style.left = `${clientX}px`;
+                prohibitedSymbol.style.top = `${clientY}px`;
                 prohibitedSymbol.style.display = 'block';
                 setTimeout(() => {
                     prohibitedSymbol.style.display = 'none';
