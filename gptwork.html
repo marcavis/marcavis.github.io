@@ -43,16 +43,23 @@
         .district h4 {
             margin: 0 0 5px;
         }
+        .prohibited {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            background: url('prohibited.png') no-repeat center center;
+            background-size: contain;
+            display: none;
+        }
     </style>
 </head>
 <body>
     <div id="map-container"></div>
     <div id="selected-municipalities">
         <div id="controls">
-            <!-- <button id="save-district">Save District</button> -->
-            <button id="save-districts">Save All Districts</button>
+            <button id="save-district">Save District</button>
             <input type="file" id="load-district-file" style="display:none">
-            <button id="load-districts">Load All Districts</button>
+            <button id="load-district">Load District</button>
             <div id="color-palette">
                 <h3>Select Color</h3>
                 <div class="color-box" style="background-color: #e6194b;"></div>
@@ -68,6 +75,7 @@
                 <div class="color-box" style="background-color: #008080;"></div>
                 <div class="color-box" style="background-color: #e6beff;"></div>
                 <div class="color-box" style="background-color: #aa6e28;"></div>
+                <div class="color-box" style="background-color: #fffac8;"></div>
                 <div class="color-box" style="background-color: #800000;"></div>
                 <div class="color-box" style="background-color: #aaffc3;"></div>
             </div>
@@ -80,21 +88,21 @@
             <h3>Implemented Districts</h3>
         </div>
     </div>
+    <div id="prohibited" class="prohibited"></div>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             const mapContainer = document.getElementById('map-container');
-            // const saveButton = document.getElementById('save-district');
-            const saveButton = document.getElementById('save-districts');
-            const loadButton = document.getElementById('load-districts');
+            const saveButton = document.getElementById('save-district');
+            const loadButton = document.getElementById('load-district');
             const loadFileInput = document.getElementById('load-district-file');
             const implementButton = document.getElementById('implement-district');
             const totalPopulationElement = document.getElementById('total-population');
             const municipalityListElement = document.getElementById('municipality-list');
             const implementedDistrictsElement = document.getElementById('implemented-districts');
             const colorPalette = document.getElementById('color-palette');
+            const prohibitedSymbol = document.getElementById('prohibited');
             let selectedColor = '#e6194b'; // Default color
-            
-            
+            let implementedMunicipalities = new Set();
 
             // Load the SVG file using an AJAX request
             const xhr = new XMLHttpRequest();
@@ -114,8 +122,6 @@
                             const csvData = csvXhr.responseText;
                             const municipalitiesData = parseCSV(csvData);
 
-                            const implementedDistricts = {};
-
                             // Object to store selected municipalities
                             const selectedMunicipalities = {};
 
@@ -126,39 +132,36 @@
                                 const municipalityData = municipalitiesData[municipalityId];
 
                                 if (municipalityData) {
-                                    clickedPath.classList.toggle('clicked');
-                                    clickedPath.style.fill = selectedColor;
-
-                                    if (selectedMunicipalities[municipalityId]) {
-                                        delete selectedMunicipalities[municipalityId];
-                                        clickedPath.style.fill = ''; // Reset color if unselected
+                                    if (implementedMunicipalities.has(municipalityId)) {
+                                        showProhibitedSymbol(event.clientX, event.clientY);
                                     } else {
-                                        selectedMunicipalities[municipalityId] = municipalityData;
-                                    }
+                                        clickedPath.classList.toggle('clicked');
+                                        clickedPath.style.fill = selectedColor;
 
-                                    updateSelectedMunicipalitiesDisplay(selectedMunicipalities);
+                                        if (selectedMunicipalities[municipalityId]) {
+                                            delete selectedMunicipalities[municipalityId];
+                                            clickedPath.style.fill = ''; // Reset color if unselected
+                                        } else {
+                                            selectedMunicipalities[municipalityId] = municipalityData;
+                                        }
+
+                                        updateSelectedMunicipalitiesDisplay(selectedMunicipalities);
+                                    }
                                 }
                             });
 
                             saveButton.addEventListener('click', function() {
-                                saveDistricts(implementedDistricts);
+                                saveDistrict(selectedMunicipalities);
                             });
-
-                            
 
                             loadButton.addEventListener('click', function() {
                                 loadFileInput.click();
                             });
 
-                            // saveUFButton.addEventListener('click', function() {
-                            //     saveUF(implementedDistricts);
-                            // });
-
                             loadFileInput.addEventListener('change', function(event) {
                                 const file = event.target.files[0];
                                 if (file) {
-                                    //loadDistrict(file, map, municipalitiesData, selectedMunicipalities);
-                                    loadDistricts(file, map, municipalitiesData, implementedDistricts);
+                                    loadDistrict(file, map, municipalitiesData, selectedMunicipalities);
                                 }
                             });
 
@@ -171,7 +174,7 @@
                             });
 
                             implementButton.addEventListener('click', function() {
-                                implementDistrict(implementedDistricts, selectedMunicipalities, municipalitiesData, map);
+                                implementDistrict(selectedMunicipalities, municipalitiesData);
                             });
 
                             implementedDistrictsElement.addEventListener('mouseenter', function(event) {
@@ -223,29 +226,12 @@
             }
 
             function updateSelectedMunicipalitiesDisplay(selectedMunicipalities) {
-                let totalPopulation = 0;
                 municipalityListElement.innerHTML = '';
-
-                for (const id in selectedMunicipalities) {
-                    const municipality = selectedMunicipalities[id];
-                    totalPopulation += municipality.population;
-
-                    const listItem = document.createElement('li');
-                    listItem.textContent = `${municipality.name} (Population: ${municipality.population})`;
-                    municipalityListElement.appendChild(listItem);
-                }
-
-                totalPopulationElement.textContent = `Total Population: ${totalPopulation}`;
-            }
-
-            function updateSelectedDisctrictsDisplay(implementedDistricts) {
                 let totalPopulation = 0;
-                implementedDistrictsElement.innerHTML = '';
 
                 for (const id in selectedMunicipalities) {
                     const municipality = selectedMunicipalities[id];
                     totalPopulation += municipality.population;
-
                     const listItem = document.createElement('li');
                     listItem.textContent = `${municipality.name} (Population: ${municipality.population})`;
                     municipalityListElement.appendChild(listItem);
@@ -255,68 +241,37 @@
             }
 
             function saveDistrict(selectedMunicipalities) {
-                const blob = new Blob([JSON.stringify(selectedMunicipalities)], { type: 'application/json' });
+                const data = JSON.stringify(selectedMunicipalities);
+                const blob = new Blob([data], { type: 'application/json' });
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
                 a.download = 'district.json';
-                document.body.appendChild(a);
                 a.click();
-                document.body.removeChild(a);
                 URL.revokeObjectURL(url);
-            }
-
-            function saveDistricts(implementedDistricts) {
-                const blob = new Blob([JSON.stringify(implementedDistricts)], { type: 'application/json' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = 'districts.json';
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                URL.revokeObjectURL(url);
-            }
-
-            //algum progresso
-            function loadDistricts(file, map, municipalitiesData, implementedDistricts) {
-                const reader = new FileReader();
-                reader.onload = function(event) {
-                    const districts = JSON.parse(event.target.result);
-                    
-                    municipalityListElement.innerHTML = '';
-                    implementedDistrictsElement.innerHTML = '';
-
-                    for (const district in districts) {
-                        implementDistrict(implementedDistricts, districts[district], municipalitiesData, map);
-                    }
-                };
-                reader.readAsText(file);
             }
 
             function loadDistrict(file, map, municipalitiesData, selectedMunicipalities) {
                 const reader = new FileReader();
                 reader.onload = function(event) {
-                    const district = JSON.parse(event.target.result);
-                    for (const id in district) {
-                        selectedMunicipalities[id] = municipalitiesData[id];
+                    const data = JSON.parse(event.target.result);
+                    for (const id in data) {
                         const path = map.getElementById(id);
                         if (path) {
                             path.classList.add('clicked');
-                            path.style.fill = selectedColor; // Apply selected color to loaded district
+                            path.style.fill = selectedColor;
                         }
+                        selectedMunicipalities[id] = municipalitiesData[id];
                     }
                     updateSelectedMunicipalitiesDisplay(selectedMunicipalities);
                 };
                 reader.readAsText(file);
             }
 
-            function implementDistrict(implementedDistricts, selectedMunicipalities, municipalitiesData, map) {
-                
-                
+            function implementDistrict(selectedMunicipalities, municipalitiesData) {
                 let totalPopulation = 0;
                 let mostPopulousCity = null;
-                let cityCount = Object.keys(selectedMunicipalities).length;
+
                 for (const id in selectedMunicipalities) {
                     const municipality = selectedMunicipalities[id];
                     totalPopulation += municipality.population;
@@ -325,22 +280,32 @@
                         mostPopulousCity = municipality;
                     }
                 }
-                const clone = structuredClone(selectedMunicipalities);
-                implementedDistricts[mostPopulousCity.name] = clone;
-                console.log(implementedDistricts);
 
                 // Create a new district element
                 const districtElement = document.createElement('div');
                 districtElement.classList.add('district');
                 const districtName = mostPopulousCity ? mostPopulousCity.name : 'Unnamed District';
-                
-                districtElement.innerHTML = `<h4>${districtName}, ${cityCount}, Pop: ${totalPopulation}</h4>`;
+                districtElement.innerHTML = `<h4>${districtName}</h4><p>Total Population: ${totalPopulation}</p>`;
 
-                //districtElement.appendChild(districtList);
+                // Create a list of municipalities in the district
+                const districtList = document.createElement('ul');
+                for (const id in selectedMunicipalities) {
+                    const municipality = selectedMunicipalities[id];
+                    const listItem = document.createElement('li');
+                    listItem.textContent = `${municipality.name} (Population: ${municipality.population})`;
+                    districtList.appendChild(listItem);
+                }
+
+                districtElement.appendChild(districtList);
                 implementedDistrictsElement.appendChild(districtElement);
 
                 // Attach data to the district element for hover effect
                 districtElement.dataset.municipalities = JSON.stringify(selectedMunicipalities);
+
+                // Add the municipalities to the implementedMunicipalities set
+                for (const id in selectedMunicipalities) {
+                    implementedMunicipalities.add(id);
+                }
 
                 // Clear the current selection
                 municipalityListElement.innerHTML = '';
@@ -358,7 +323,6 @@
                 for (const id in selectedMunicipalities) {
                     delete selectedMunicipalities[id];
                 }
-
             }
 
             function showProhibitedSymbol(x, y) {
@@ -369,7 +333,6 @@
                     prohibitedSymbol.style.display = 'none';
                 }, 2000);
             }
-
         });
     </script>
 </body>
