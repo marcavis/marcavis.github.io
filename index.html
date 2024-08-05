@@ -167,10 +167,6 @@
                                 loadFileInput.click();
                             });
 
-                            // saveUFButton.addEventListener('click', function() {
-                            //     saveUF(implementedDistricts);
-                            // });
-
                             loadFileInput.addEventListener('change', function(event) {
                                 const file = event.target.files[0];
                                 if (file) {
@@ -184,6 +180,9 @@
                                     document.querySelectorAll('.color-box').forEach(box => box.classList.remove('selected-color'));
                                     event.target.classList.add('selected-color');
                                     selectedColor = event.target.style.backgroundColor;
+                                }
+                                for (const id in selectedMunicipalities) {
+                                    document.getElementById(id).style.fill = selectedColor;
                                 }
                             });
 
@@ -271,18 +270,6 @@
                 totalPopulationElement.textContent = `Total Population: ${totalPopulation}`;
             }
 
-            function saveDistrict(selectedMunicipalities) {
-                const blob = new Blob([JSON.stringify(selectedMunicipalities)], { type: 'application/json' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = 'district.json';
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                URL.revokeObjectURL(url);
-            }
-
             function saveDistricts(implementedDistricts) {
                 const blob = new Blob([JSON.stringify(implementedDistricts)], { type: 'application/json' });
                 const url = URL.createObjectURL(blob);
@@ -329,8 +316,6 @@
             }
 
             function implementDistrict(implementedDistricts, selectedMunicipalities, municipalitiesData, map) {
-                
-                
                 let totalPopulation = 0;
                 let mostPopulousCity = null;
                 let cityCount = Object.keys(selectedMunicipalities).length;
@@ -344,7 +329,6 @@
                 }
                 const clone = structuredClone(selectedMunicipalities);
                 implementedDistricts[mostPopulousCity.name] = clone;
-                console.log(implementedDistricts);
 
                 // Create a new district element
                 const districtElement = document.createElement('div');
