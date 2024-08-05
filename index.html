@@ -18,9 +18,6 @@
             padding: 10px;
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
         }
-        .clicked {
-            fill: red; /* Default highlight color */
-        }
         #controls {
             margin-bottom: 20px;
         }
@@ -31,6 +28,9 @@
             cursor: pointer;
             margin: 2px;
             border: 1px solid #000;
+        }
+        .color-box.selected {
+            border: 6px solid black; /* Adjust the border width and color as needed */
         }
         .selected-color {
             border: 2px solid #000;
@@ -66,8 +66,7 @@
             <button id="load-districts">Load All Districts</button>
             <div id="color-palette">
                 <h3>Select Color</h3>
-                <div class="color-box" style="background-color: #e6194b;"></div>
-                <div class="color-box" style="background-color: #3cb44b;"></div>
+                <div class="color-box selected" style="background-color: green;"></div>
                 <div class="color-box" style="background-color: #ffe119;"></div>
                 <div class="color-box" style="background-color: #0082c8;"></div>
                 <div class="color-box" style="background-color: #f58231;"></div>
@@ -105,9 +104,12 @@
             const implementedDistrictsElement = document.getElementById('implemented-districts');
             const colorPalette = document.getElementById('color-palette');
             const prohibitedSymbol = document.getElementById('prohibited');
-            let selectedColor = '#e6194b'; // Default color
-            let implementedMunicipalities = new Set();
+            const availableColors = ['green', '#ffe119', '#0082c8', '#f58231', '#911eb4', '#46f0f0', '#f032e6', '#d2f53c', '#fabebe', '#008080', '#e6beff', '#aa6e28', '#800000', '#aaffc3']; // Add your colors here
+            let colorIndex = 0;
+
             
+            let selectedColor = 'green'; // Default color
+            let implementedMunicipalities = new Set();
 
             // Load the SVG file using an AJAX request
             const xhr = new XMLHttpRequest();
@@ -176,10 +178,12 @@
                             });
 
                             colorPalette.addEventListener('click', function(event) {
+                                //event.target.style
                                 if (event.target.classList.contains('color-box')) {
                                     document.querySelectorAll('.color-box').forEach(box => box.classList.remove('selected-color'));
                                     event.target.classList.add('selected-color');
                                     selectedColor = event.target.style.backgroundColor;
+                                    highlightSelectedColor(event.target);
                                 }
                                 for (const id in selectedMunicipalities) {
                                     document.getElementById(id).style.fill = selectedColor;
@@ -208,7 +212,7 @@
                                     for (const id in districtMunicipalities) {
                                         const path = map.getElementById(id);
                                         if (path) {
-                                            path.style.fill = '';
+                                            path.style.fill = event.target.dataset.color;
                                         }
                                     }
                                 }
@@ -298,23 +302,6 @@
                 reader.readAsText(file);
             }
 
-            function loadDistrict(file, map, municipalitiesData, selectedMunicipalities) {
-                const reader = new FileReader();
-                reader.onload = function(event) {
-                    const district = JSON.parse(event.target.result);
-                    for (const id in district) {
-                        selectedMunicipalities[id] = municipalitiesData[id];
-                        const path = map.getElementById(id);
-                        if (path) {
-                            path.classList.add('clicked');
-                            path.style.fill = selectedColor; // Apply selected color to loaded district
-                        }
-                    }
-                    updateSelectedMunicipalitiesDisplay(selectedMunicipalities);
-                };
-                reader.readAsText(file);
-            }
-
             function implementDistrict(implementedDistricts, selectedMunicipalities, municipalitiesData, map) {
                 let totalPopulation = 0;
                 let mostPopulousCity = null;
@@ -342,6 +329,8 @@
 
                 // Attach data to the district element for hover effect
                 districtElement.dataset.municipalities = JSON.stringify(selectedMunicipalities);
+                districtElement.dataset.mainCity = mostPopulousCity;
+                districtElement.dataset.color = selectedColor;
 
                 // Add the municipalities to the implementedMunicipalities set
                 for (const id in selectedMunicipalities) {
@@ -356,7 +345,7 @@
                     const path = map.getElementById(id);
                     if (path) {
                         path.classList.remove('clicked');
-                        path.style.fill = ''; // Reset color
+                        // path.style.fill = ''; // Reset color
                     }
                 }
 
@@ -364,6 +353,9 @@
                 for (const id in selectedMunicipalities) {
                     delete selectedMunicipalities[id];
                 }
+
+                // Update the selected color to the next one in the palette
+                selectedColor = getNextColor();
 
                 // Add event listener to trash icon for deleting the district
                 const trashIcon = districtElement.querySelector('.trash-icon');
@@ -396,6 +388,26 @@
                 setTimeout(() => {
                     prohibitedSymbol.style.display = 'none';
                 }, 2000);
+            }
+
+            function getNextColor() {
+                colorIndex = (colorIndex + 1) % availableColors.length;
+                highlightSelectedColor(document.getElementsByClassName('color-box')[colorIndex]);
+
+                return availableColors[colorIndex];
+            }
+
+            // Function to highlight the selected color square
+            function highlightSelectedColor(colorBox) {
+                //console.log(colorBox);
+                //console.log(colorBox.style.backgroundColor);
+                // Remove the 'selected' class from all color squares
+                document.querySelectorAll('.color-box').forEach(square => {
+                    square.classList.remove('selected');
+                });
+                // Add the 'selected' class to the clicked color square
+                colorBox.classList.add('selected');
+                //console.log(Array.from(document.querySelectorAll('color-box')).find(square => square.style.backgroundColor === colorBox.style.backgroundColor));
             }
 
         });
