@@ -93,6 +93,8 @@
     <div id="prohibited" class="prohibited">🚫</div>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
+            //TODO: let's calculate this by dividing the population by number of districts later
+            const DISTRICT_POPULATION_LIMIT = 480000; // Example limit
             const mapContainer = document.getElementById('map-container');
             // const saveButton = document.getElementById('save-district');
             const saveButton = document.getElementById('save-districts');
@@ -305,65 +307,123 @@
             function implementDistrict(implementedDistricts, selectedMunicipalities, municipalitiesData, map) {
                 let totalPopulation = 0;
                 let mostPopulousCity = null;
-                let cityCount = Object.keys(selectedMunicipalities).length;
+                let remainingPopulation = 0;
+
+                const districtsToImplement = [];
+
                 for (const id in selectedMunicipalities) {
                     const municipality = selectedMunicipalities[id];
-                    totalPopulation += municipality.population;
-
                     if (!mostPopulousCity || municipality.population > mostPopulousCity.population) {
                         mostPopulousCity = municipality;
                     }
-                }
-                const clone = structuredClone(selectedMunicipalities);
-                implementedDistricts[mostPopulousCity.name] = clone;
 
-                // Create a new district element
-                const districtElement = document.createElement('div');
-                districtElement.classList.add('district');
-                const districtName = mostPopulousCity ? mostPopulousCity.name : 'Unnamed District';
-                
-                districtElement.innerHTML = `<h4>${districtName}, ${cityCount}, Pop: ${totalPopulation} <span class="trash-icon">🗑️</span></h4>`;
-
-                //districtElement.appendChild(districtList);
-                implementedDistrictsElement.appendChild(districtElement);
-
-                // Attach data to the district element for hover effect
-                districtElement.dataset.municipalities = JSON.stringify(selectedMunicipalities);
-                districtElement.dataset.mainCity = mostPopulousCity;
-                districtElement.dataset.color = selectedColor;
-
-                // Add the municipalities to the implementedMunicipalities set
-                for (const id in selectedMunicipalities) {
-                    implementedMunicipalities.add(id);
-                }
-
-                // Clear the current selection
-                municipalityListElement.innerHTML = '';
-                totalPopulationElement.textContent = 'Total Population: 0';
-
-                for (const id in selectedMunicipalities) {
-                    const path = map.getElementById(id);
-                    if (path) {
-                        path.classList.remove('clicked');
-                            path.style.fill = selectedColor;
+                    if (municipality.population > DISTRICT_POPULATION_LIMIT) {
+                        const subDistricts = handleLargeMunicipality(municipality);
+                        districtsToImplement.push(...subDistricts);
+                        remainingPopulation = municipality.population - (DISTRICT_POPULATION_LIMIT * subDistricts.length);
+                        console.log(remainingPopulation);
+                        console.log(subDistricts);
+                    } else {
+                        totalPopulation += municipality.population;
+                        
+                        // districtsToImplement.push({
+                        //     name: municipality.name,
+                        //     population: municipality.population,
+                        //     originalMunicipality: municipality.name
+                        // });
+                        console.log(municipality.name,municipality.population);
+                        
                     }
                 }
-
-                // Clear the selectedMunicipalities object
-                for (const id in selectedMunicipalities) {
-                    delete selectedMunicipalities[id];
-                }
-
-                // Update the selected color to the next one in the palette
-                selectedColor = getNextColor();
-
-                // Add event listener to trash icon for deleting the district
-                const trashIcon = districtElement.querySelector('.trash-icon');
-                trashIcon.addEventListener('click', function() {
-                    if (confirm(`Are you sure you want to delete the district "${districtName}"?`)) {
-                        removeDistrict(map, districtElement, selectedMunicipalities);
-                    }
+                districtsToImplement.push({
+                    name: mostPopulousCity.name,
+                    population: totalPopulation,
+                    originalMunicipality: mostPopulousCity.name
                 });
+
+                console.log(districtsToImplement);
+
+                districtsToImplement.forEach(district => {
+                    let cityCount = Object.keys(selectedMunicipalities).length;
+                    for (const id in selectedMunicipalities) {
+                        const municipality = selectedMunicipalities[id];
+                        //totalPopulation += municipality.population;
+
+                        //if (!mostPopulousCity || municipality.population > mostPopulousCity.population) {
+                        //    mostPopulousCity = municipality;
+                        //}
+                    }
+                    const clone = structuredClone(selectedMunicipalities);
+                    implementedDistricts[mostPopulousCity.name] = clone;
+
+                    // Create a new district element
+                    const districtElement = document.createElement('div');
+                    districtElement.classList.add('district');
+                    const districtName = mostPopulousCity ? mostPopulousCity.name : 'Unnamed District';
+                    
+                    districtElement.innerHTML = `<h4>${districtName}, ${cityCount}, Pop: ${totalPopulation} <span class="trash-icon">🗑️</span></h4>`;
+
+                    //districtElement.appendChild(districtList);
+                    implementedDistrictsElement.appendChild(districtElement);
+
+                    // Attach data to the district element for hover effect
+                    districtElement.dataset.municipalities = JSON.stringify(selectedMunicipalities);
+                    districtElement.dataset.mainCity = mostPopulousCity;
+                    districtElement.dataset.color = selectedColor;
+
+                    // Add the municipalities to the implementedMunicipalities set
+                    for (const id in selectedMunicipalities) {
+                        implementedMunicipalities.add(id);
+                    }
+
+                    // Clear the current selection
+                    municipalityListElement.innerHTML = '';
+                    totalPopulationElement.textContent = 'Total Population: 0';
+
+                    for (const id in selectedMunicipalities) {
+                        const path = map.getElementById(id);
+                        if (path) {
+                            path.classList.remove('clicked');
+                            path.style.fill = selectedColor;
+                        }
+                    }
+
+                    // Clear the selectedMunicipalities object
+                    for (const id in selectedMunicipalities) {
+                        delete selectedMunicipalities[id];
+                    }
+
+                    // Update the selected color to the next one in the palette
+                    selectedColor = getNextColor();
+
+                    // Add event listener to trash icon for deleting the district
+                    const trashIcon = districtElement.querySelector('.trash-icon');
+                    trashIcon.addEventListener('click', function() {
+                        if (confirm(`Are you sure you want to delete the district "${districtName}"?`)) {
+                            removeDistrict(map, districtElement, selectedMunicipalities);
+                        }
+                    });
+                });
+            }
+
+            function handleLargeMunicipality(municipality) {
+                const subDistricts = [];
+                let remainingPopulation = municipality.population;
+                let subDistrictIndex = 1;
+
+                while (remainingPopulation > 0) {
+                    const subDistrictPopulation = Math.min(remainingPopulation, DISTRICT_POPULATION_LIMIT);
+                    subDistricts.push({
+                        name: `${municipality.name} - Sub-District ${subDistrictIndex}`,
+                        population: subDistrictPopulation,
+                        originalMunicipality: municipality.name
+                    });
+                    remainingPopulation -= subDistrictPopulation;
+                    subDistrictIndex++;
+                }
+
+                console.log(subDistricts);
+                return subDistricts;
             }
 
             function removeDistrict(map, districtElement, selectedMunicipalities) {
