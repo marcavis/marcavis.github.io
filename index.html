@@ -94,6 +94,11 @@
     </div>
     <div id="prohibited" class="prohibited">🚫</div>
     <script>
+        function getQueryParameter(name) {
+            const urlParams = new URLSearchParams(window.location.search);
+            return urlParams.get(name);
+        }
+
         document.addEventListener('DOMContentLoaded', function() {
             //TODO: let's calculate this by dividing the population by number of districts later
             const DISTRICT_POPULATION_LIMIT = 200000; // Example limit
@@ -110,14 +115,16 @@
             const prohibitedSymbol = document.getElementById('prohibited');
             const availableColors = ['green', '#ffe119', '#0082c8', '#f58231', '#911eb4', '#46f0f0', '#f032e6', '#d2f53c', '#fabebe', '#008080', '#e6beff', '#aa6e28', '#800000', '#aaffc3']; // Add your colors here
             let colorIndex = 0;
-
+            //let selectedMap = "rs.svg"
+            let selectedMap = getQueryParameter('map');
+            if (!selectedMap) selectedMap="sc";
             
             let selectedColor = 'green'; // Default color
             let implementedMunicipalities = new Set();
 
             // Load the SVG file using an AJAX request
             const xhr = new XMLHttpRequest();
-            xhr.open('GET', 'pr.svg', true);
+            xhr.open('GET', selectedMap + ".svg", true);
             xhr.onreadystatechange = function() {
                 if (xhr.readyState === 4 && xhr.status === 200) {
                     mapContainer.innerHTML = xhr.responseText;
