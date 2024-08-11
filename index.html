@@ -94,7 +94,7 @@
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             //TODO: let's calculate this by dividing the population by number of districts later
-            const DISTRICT_POPULATION_LIMIT = 480000; // Example limit
+            const DISTRICT_POPULATION_LIMIT = 200000; // Example limit
             const mapContainer = document.getElementById('map-container');
             // const saveButton = document.getElementById('save-district');
             const saveButton = document.getElementById('save-districts');
@@ -140,6 +140,7 @@
                             map.addEventListener('click', function(event) {
                                 const clickedPath = event.target;
                                 const municipalityId = clickedPath.id;
+                                console.log(municipalityId);
                                 const municipalityData = municipalitiesData[municipalityId];
 
                                 if (municipalityData) {
@@ -308,6 +309,7 @@
                 let totalPopulation = 0;
                 let mostPopulousCity = null;
                 let remainingPopulation = 0;
+                let bigCitySubdistricts = [];
 
                 const districtsToImplement = [];
 
@@ -319,10 +321,11 @@
 
                     if (municipality.population > DISTRICT_POPULATION_LIMIT) {
                         const subDistricts = handleLargeMunicipality(municipality);
-                        districtsToImplement.push(...subDistricts);
+                        bigCitySubdistricts.push(...subDistricts);
                         remainingPopulation = municipality.population - (DISTRICT_POPULATION_LIMIT * subDistricts.length);
                         console.log(remainingPopulation);
                         console.log(subDistricts);
+                        totalPopulation += remainingPopulation;
                     } else {
                         totalPopulation += municipality.population;
                         
@@ -338,30 +341,34 @@
                 districtsToImplement.push({
                     name: mostPopulousCity.name,
                     population: totalPopulation,
-                    originalMunicipality: mostPopulousCity.name
+                    originalMunicipality: mostPopulousCity.name,
+                    subDistrict: false
                 });
+                districtsToImplement.push(...bigCitySubdistricts);
 
                 console.log(districtsToImplement);
 
                 districtsToImplement.forEach(district => {
                     let cityCount = Object.keys(selectedMunicipalities).length;
-                    for (const id in selectedMunicipalities) {
-                        const municipality = selectedMunicipalities[id];
-                        //totalPopulation += municipality.population;
+                    // for (const id in selectedMunicipalities) {
+                    //     const municipality = selectedMunicipalities[id];
+                    //     //totalPopulation += municipality.population;
 
-                        //if (!mostPopulousCity || municipality.population > mostPopulousCity.population) {
-                        //    mostPopulousCity = municipality;
-                        //}
-                    }
+                    //     //if (!mostPopulousCity || municipality.population > mostPopulousCity.population) {
+                    //     //    mostPopulousCity = municipality;
+                    //     //}
+                    // }
+                    console.log(selectedMunicipalities, district.name);
                     const clone = structuredClone(selectedMunicipalities);
-                    implementedDistricts[mostPopulousCity.name] = clone;
+                    implementedDistricts[district.name] = clone;
 
                     // Create a new district element
                     const districtElement = document.createElement('div');
                     districtElement.classList.add('district');
-                    const districtName = mostPopulousCity ? mostPopulousCity.name : 'Unnamed District';
+                    //const districtName = mostPopulousCity ? mostPopulousCity.name : 'Unnamed District';
+                    const districtName = district.name;
                     
-                    districtElement.innerHTML = `<h4>${districtName}, ${cityCount}, Pop: ${totalPopulation} <span class="trash-icon">🗑️</span></h4>`;
+                    districtElement.innerHTML = `<h4>${districtName}, ${cityCount}, Pop: ${district.population} <span class="trash-icon">🗑️</span></h4>`;
 
                     //districtElement.appendChild(districtList);
                     implementedDistrictsElement.appendChild(districtElement);
@@ -411,12 +418,13 @@
                 let remainingPopulation = municipality.population;
                 let subDistrictIndex = 1;
 
-                while (remainingPopulation > 0) {
+                while (remainingPopulation > DISTRICT_POPULATION_LIMIT) {
                     const subDistrictPopulation = Math.min(remainingPopulation, DISTRICT_POPULATION_LIMIT);
                     subDistricts.push({
                         name: `${municipality.name} - Sub-District ${subDistrictIndex}`,
                         population: subDistrictPopulation,
-                        originalMunicipality: municipality.name
+                        originalMunicipality: municipality.name,
+                        subDistrict: true
                     });
                     remainingPopulation -= subDistrictPopulation;
                     subDistrictIndex++;
