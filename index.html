@@ -85,6 +85,14 @@
             </div>
             <button id="implement-district">Implement Current District</button>
         </div>
+        <div id="state-population">
+            <h3>State Pop:</h3>
+        </div>
+        <div id="districtSettings">
+            <label for="numDistricts">Number of Districts:</label>
+            <input type="number" id="numDistricts" value="20" min="1">
+            <p id="populationTarget">Population Target per District: </p>
+        </div>
         <h2>Selected Municipalities</h2>
         <p id="total-population">Total Population: 0</p>
         <ul id="municipality-list"></ul>
@@ -101,7 +109,7 @@
 
         document.addEventListener('DOMContentLoaded', function() {
             //TODO: let's calculate this by dividing the population by number of districts later
-            const DISTRICT_POPULATION_LIMIT = 200000; // Example limit
+            let DISTRICT_POPULATION_LIMIT = 200000; // Example limit
             const mapContainer = document.getElementById('map-container');
             // const saveButton = document.getElementById('save-district');
             const saveButton = document.getElementById('save-districts');
@@ -113,22 +121,28 @@
             const implementedDistrictsElement = document.getElementById('implemented-districts');
             const colorPalette = document.getElementById('color-palette');
             const prohibitedSymbol = document.getElementById('prohibited');
+            const statePopLabel = document.getElementById('state-population');
             const availableColors = ['green', '#ffe119', '#0082c8', '#f58231', '#911eb4', '#46f0f0', '#f032e6', '#d2f53c', '#fabebe', '#008080', '#e6beff', '#aa6e28', '#800000', '#aaffc3']; // Add your colors here
             let colorIndex = 0;
             //let selectedMap = "rs.svg"
+            let statePopulations = parseEstadosCSV();
+            
+            console.log(statePopulations);
             let selectedMap = getQueryParameter('map');
             if (!selectedMap) selectedMap="sc";
             
             let selectedColor = 'green'; // Default color
-            let implementedMunicipalities = new Set();
+            let implementedMunicipalities;
 
             // Load the SVG file using an AJAX request
             const xhr = new XMLHttpRequest();
             xhr.open('GET', selectedMap + ".svg", true);
             xhr.onreadystatechange = function() {
                 if (xhr.readyState === 4 && xhr.status === 200) {
+                    implementedMunicipalities = new Set();
                     mapContainer.innerHTML = xhr.responseText;
 
+                    
                     // Get the SVG map element
                     const map = document.querySelector('svg');
 
@@ -137,6 +151,7 @@
                     csvXhr.open('GET', 'municipalities.csv', true);
                     csvXhr.onreadystatechange = function() {
                         if (csvXhr.readyState === 4 && csvXhr.status === 200) {
+                            
                             const csvData = csvXhr.responseText;
                             const municipalitiesData = parseCSV(csvData);
 
@@ -145,6 +160,18 @@
                             // Object to store selected municipalities
                             const selectedMunicipalities = {};
 
+
+
+                            document.addEventListener('click', function(event) {
+                                statePopLabel.innerHTML = `<h3>State pop: ${statePopulations[selectedMap]}</h4>`;
+                                // Add event listener to update population target when the input changes
+                                document.getElementById('numDistricts').addEventListener('input', updatePopulationTarget);
+
+                                // Call the function once to initialize the label with the default value
+                                updatePopulationTarget();
+
+                            }, {once: true});
+
                             // Add click event listener to the map
                             map.addEventListener('click', function(event) {
                                 const clickedPath = event.target;
@@ -152,6 +179,7 @@
                                 const municipalityData = municipalitiesData[municipalityId];
 
                                 if (municipalityData) {
+                                    
                                     if (implementedMunicipalities.has(municipalityId)) {
                                         showProhibitedSymbol(event.offsetX, event.offsetY);
                                     } else {
@@ -173,8 +201,6 @@
                             saveButton.addEventListener('click', function() {
                                 saveDistricts(implementedDistricts);
                             });
-
-                            
 
                             loadButton.addEventListener('click', function() {
                                 loadFileInput.click();
@@ -228,6 +254,8 @@
                                     }
                                 }
                             }, true);
+
+                            
                         }
                     };
                     csvXhr.send();
@@ -249,8 +277,28 @@
                         };
                     }
                 }
-
                 return municipalities;
+            }
+
+            function parseEstadosCSV() {
+                const statePopulations = {};
+                fetch('estados.csv')
+                    .then(response => response.text())
+                    .then(csvText => {
+                        const rows = csvText.split('\n').map(row => row.trim());
+                        rows.forEach(row => {
+                            const [state, population] = row.split(';');
+                            statePopulations[state.toLowerCase()] = parseInt(population.trim(), 10);
+                            // statePopulations[state.toLowerCase()] = {
+                            //     state: state.trim(),
+                            //     population: parseInt(population.trim(), 10)
+                            // };
+                        });
+                    })
+                    .catch(error => console.error('Error loading CSV:', error));
+                console.log(statePopulations['sc']);
+                console.log(Object.keys(statePopulations));
+                return statePopulations;
             }
 
             function updateSelectedMunicipalitiesDisplay(selectedMunicipalities) {
@@ -354,19 +402,9 @@
                 });
                 districtsToImplement.push(...bigCitySubdistricts);
 
-                console.log(districtsToImplement);
-
                 districtsToImplement.forEach(district => {
                     let cityCount = Object.keys(selectedMunicipalities).length;
-                    // for (const id in selectedMunicipalities) {
-                    //     const municipality = selectedMunicipalities[id];
-                    //     //totalPopulation += municipality.population;
 
-                    //     //if (!mostPopulousCity || municipality.population > mostPopulousCity.population) {
-                    //     //    mostPopulousCity = municipality;
-                    //     //}
-                    // }
-                    console.log(selectedMunicipalities, district.name);
                     const clone = structuredClone(selectedMunicipalities);
                     implementedDistricts[district.name] = clone;
 
@@ -455,6 +493,19 @@
 
                 // Remove the district element from the DOM
                 districtElement.remove();
+            }
+
+            function updatePopulationTarget() {
+                const totalPopulation = statePopulations[selectedMap];
+                
+                const numDistrictsInput = document.getElementById('numDistricts');
+                const numDistricts = parseInt(numDistrictsInput.value, 10);
+                
+                const populationTarget = Math.floor(totalPopulation / numDistricts);
+                
+                const populationTargetLabel = document.getElementById('populationTarget');
+                populationTargetLabel.textContent = `Population Target per District: ${populationTarget.toLocaleString()}`;
+                DISTRICT_POPULATION_LIMIT = populationTarget;
             }
 
             function showProhibitedSymbol(clientX, clientY) {
